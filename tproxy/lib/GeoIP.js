@@ -35,10 +35,8 @@ class GeoIPReader {
             }
           });
         });
-  
-        //console.log(country, selectRemote);
-  
-        console.log('GeoIP Lookup Time : ' + (new Date().getTime() - startTime) + 'ms');
+    
+        //console.log('GeoIP Lookup Time : ' + (new Date().getTime() - startTime) + 'ms');
   
         resolve({
           country: country,

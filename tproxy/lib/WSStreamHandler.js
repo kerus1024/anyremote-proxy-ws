@@ -7,15 +7,12 @@ class WSStreamHandler {
     });
 
     ioCluster.on('packed', (packed) => {
-      //console.log('GotData!', packed);
-      //const unpack = JSON.parse(packed);
-      //const sID = unpack.sessionIndicator;
-
       newTCPEmitter.emit('sid/' + packed.sessionIndicator, packed);
-
     });
 
-    ioCluster.emit('hi');
+    ioCluster.on('error', (e) => {
+      console.error(e);
+    });
 
   }
   

@@ -27,25 +27,31 @@ if (cluster.isMaster) {
   
 } else {
 
-  /*
-    이미 CLOSE된 세션을 정리해주는 GC가 필요할 것 같다. / 및 if 로직이
-  */
-
-
   const newTCPEmitter = new EventEmitter();
 
   const ioClusterConnect = {};
+  let ioClusterIndex = 0;
   const sessionIndicator = {};
   let sessionIndicatorIncrement = 0;
-  
+
   Object.keys(geoconfig.geoCountry).forEach(v => {
     const path = `ws://${v}:${geoconfig.rProxyPort}`;
-    console.log(path)
-    ioClusterConnect[v] = io.connect(path, {
-      //reconnection: false,
-      localAddress: '10.50.0.1'
-    });
-    new WSStreamHandler(v, ioClusterConnect[v], sessionIndicatorIncrement, newTCPEmitter);
+
+    if (typeof ioClusterConnect[v] === 'undefined') {
+      ioClusterConnect[v] = [];
+      ioClusterIndex = 0;
+    }
+
+    ioClusterConnect[v].push(io.connect(path, {
+      reconnection: true,
+      localAddress: '10.50.0.1',
+      transports: [ 'websocket' ]
+    }));
+
+    new WSStreamHandler(v, ioClusterConnect[v][ioClusterIndex], sessionIndicatorIncrement, newTCPEmitter);
+
+    ioClusterIndex++;
+
   });
 
   server.listen(ServerConstants.LISTENPORT, ServerConstants.LISTENIP, () => {    

@@ -1,3 +1,5 @@
+const geoconfig = require(`${process.cwd()}/geoconfig.json`);
+
 const Conntrack = require('./Conntrack');
 const GeoIP = require('./GeoIP');
 
@@ -8,12 +10,20 @@ class HandleConnection {
     this.clientIP = tcpSocket.remoteAddress;
     this.clientPort = tcpSocket.remotePort;
     this.tcpSocket = tcpSocket;
+
     this._ioCluster = ioCluster;
     this.ioCluster = null;
     this.sessionID = sessionID;
     this.session = sessions[sessionID];
     
     this.remoteSocket = newTCPEmitter;
+
+    this.targetIP           = null;
+    this.targetPort         = null;
+
+    this.targetGeoCountry   = 'ZZ';
+    this.targetGeoRemoteServer    = geoconfig.gw;
+    this.targetGeoRemotePort      = geoconfig.rProxyPort;
 
     this.handle();
   }
@@ -22,6 +32,9 @@ class HandleConnection {
 
     // Build RemoteSocket Listen
     this.remoteSocket.on('sid/' + this.sessionID, (packed) => {
+
+      // GC야 부탁해..
+      if (!this.tcpSocket) return;
 
       if (packed.method === 'DATA') {
         const flushed = this.tcpSocket.write(packed.data);
@@ -37,8 +50,10 @@ class HandleConnection {
         this.tcpSocket.pause();
       } else if (packed.method === 'CLOSE') {
         this.tcpSocket.end();
+        this.tcpSocket = null;
       } else if (packed.method === 'ERROR') {
         this.tcpSocket.destroy();
+        this.tcpSocket = null;
       } else {
         throw new Error('UNKNOWN DATA RECEIVED', packed);
       }
@@ -53,26 +68,25 @@ class HandleConnection {
       });
     });
 
-    this.tcpSocket.on('drain', (data) => {
+    this.tcpSocket.on('drain', () => {
       this.ioCluster.emit('packed', {
         method: 'DRAIN',
         sessionIndicator: this.sessionID
        });
     });
 
-    this.tcpSocket.on('close', (data) => {
+    this.tcpSocket.on('close', () => {
       this.ioCluster.emit('packed', {
         method: 'CLOSE',
-        sessionIndicator: this.sessionID,
-        data: data
+        sessionIndicator: this.sessionID
       });
     });
 
-    this.tcpSocket.on('error', (data) => {
+    this.tcpSocket.on('error', (e) => {
       this.ioCluster.emit('packed', {
         method: 'ERROR',
         sessionIndicator: this.sessionID,
-        data: data
+        message: e.toString()
       });
     });
 
@@ -83,17 +97,23 @@ class HandleConnection {
     try {
 
       const resolve = await Conntrack.getOriginDestinationTCP(this.clientIP, this.clientPort);
-      const getGeo = await GeoIP.routeGeoRemote(resolve.originIP);
-  
-      console.log(`CONNECT ${this.clientIP}:${this.clientPort} -> ${resolve.originIP}:${resolve.originPort} via ${getGeo.remoteServer}`);
+      this.targetIP   = resolve.originIP;
+      this.targetPort = resolve.originPort;
 
-      this.ioCluster = this._ioCluster[getGeo.remoteServer];
+      const getGeo = await GeoIP.routeGeoRemote(resolve.originIP);
+      this.targetGeoCountry      = getGeo.country;
+      this.targetGeoRemoteServer = getGeo.remoteServer;
+  
+      console.log(`NEW PROXY CONNECT - ${this.clientIP}:${this.clientPort} -> ${this.targetIP}:${this.targetPort} [${this.targetGeoRemoteServer} (${this.targetGeoCountry})]`);
+
+      const selectRandomCluster = Math.floor(Math.random() * (this._ioCluster[this.targetGeoRemoteServer].length) );
+      this.ioCluster = this._ioCluster[this.targetGeoRemoteServer][selectRandomCluster];
 
       this.ioCluster.emit('packed', {
         method: 'CONNECT',
         sessionIndicator: this.sessionID,
-        destinationIP: resolve.originIP,
-        destinationPort: resolve.originPort,
+        destinationIP: this.targetIP,
+        destinationPort: this.targetPort,
       });
 
       this.build();
