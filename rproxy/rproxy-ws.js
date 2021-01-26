@@ -10,7 +10,7 @@ const redis = require('socket.io-redis');
 if (cluster.isMaster) {
 
   let cpus = require('os').cpus().length;
-  cpus = cpus > 4 ? cpus : 4;
+  cpus = cpus * 2;
 
   console.log(`Run ${process.title}.`);
 

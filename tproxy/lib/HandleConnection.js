@@ -50,10 +50,10 @@ class HandleConnection {
         this.tcpSocket.pause();
       } else if (packed.method === 'CLOSE') {
         this.tcpSocket.end();
-        this.tcpSocket = null;
+        delete this.session;
       } else if (packed.method === 'ERROR') {
         this.tcpSocket.destroy();
-        this.tcpSocket = null;
+        delete this.session;  
       } else {
         throw new Error('UNKNOWN DATA RECEIVED', packed);
       }
@@ -80,6 +80,8 @@ class HandleConnection {
         method: 'CLOSE',
         sessionIndicator: this.sessionID
       });
+      this.tcpSocket.destroy();
+      delete this.session;
     });
 
     this.tcpSocket.on('error', (e) => {
@@ -88,6 +90,8 @@ class HandleConnection {
         sessionIndicator: this.sessionID,
         message: e.toString()
       });
+      this.tcpSocket.destroy();
+      delete this.session;
     });
 
   }

@@ -44,7 +44,7 @@ if (cluster.isMaster) {
 
     ioClusterConnect[v].push(io.connect(path, {
       reconnection: true,
-      localAddress: '10.50.0.1',
+      localAddress: ServerConstants.PROXYLOCAL,
       transports: [ 'websocket' ]
     }));
 

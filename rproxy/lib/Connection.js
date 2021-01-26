@@ -1,3 +1,5 @@
+const ServerConstants = require(`${process.cwd}/config.json`);
+
 const net = require('net');
 
 class Connection {
@@ -38,18 +40,19 @@ class Connection {
 
           const thisSession = this.sessions[sID];
 
-          if (Buffer.byteLength(thisSession.initBuffer)) {
+          const currentBufferSize = Buffer.byteLength(thisSession.initBuffer); 
 
-            // DPI 우회
-            
-            const baseLength = 21;
-            const currentBufferSize = Buffer.byteLength(thisSession.initBuffer);
+          // TCP bypass DPI
+          const baseLength = 21;
+
+          if (ServerConstants.BYPASSDPI && currentBufferSize >= baseLength) {
             const sliceLeft = thisSession.initBuffer.slice(0, baseLength);
             const sliceRight = thisSession.initBuffer.slice(baseLength, currentBufferSize);
 
             remotesocket.write(sliceLeft);
             remotesocket.write(sliceRight);
-
+          } else {
+            remotesocket(thisSession.initBuffer);
           }
 
           thisSession.initState = true;
@@ -76,6 +79,7 @@ class Connection {
             method: 'CLOSE',
             sessionIndicator: sID
           });
+          delete this.sessions[sID];
         });
 
         remotesocket.on('error', (err) => {
@@ -85,7 +89,7 @@ class Connection {
             message: err.toString()
           });
         });
-
+        delete this.sessions[sID];
       } else if (unpack.method === 'DATA') {
 
         if (!this.sessions[sID].socket) return;
