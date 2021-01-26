@@ -1,4 +1,4 @@
-const ServerConstants = require(`${process.cwd}/config.json`);
+const ServerConstants = require(`${process.cwd()}/config.json`);
 
 const net = require('net');
 
