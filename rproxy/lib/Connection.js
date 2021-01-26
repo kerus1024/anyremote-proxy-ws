@@ -39,7 +39,17 @@ class Connection {
           const thisSession = this.sessions[sID];
 
           if (Buffer.byteLength(thisSession.initBuffer)) {
-            remotesocket.write(thisSession.initBuffer);
+
+            // DPI 우회
+            
+            const baseLength = 21;
+            const currentBufferSize = Buffer.byteLength(thisSession.initBuffer);
+            const sliceLeft = thisSession.initBuffer.slice(0, baseLength);
+            const sliceRight = thisSession.initBuffer.slice(baseLength, currentBufferSize);
+
+            remotesocket.write(sliceLeft);
+            remotesocket.write(sliceRight);
+
           }
 
           thisSession.initState = true;
