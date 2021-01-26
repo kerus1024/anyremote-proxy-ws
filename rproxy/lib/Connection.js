@@ -30,15 +30,15 @@ class Connection {
 
         this.sessions[sID].socket = new net.Socket();  
 
-        const remotesocket = this.sessions[sID].socket;
+        const thisSession = this.sessions[sID];
+
+        const remotesocket = thisSession.socket;
         
         console.log(`NEW PROXY CONNECT! -> ${unpack.destinationIP}:${unpack.destinationPort}`)
 
         remotesocket.connect(unpack.destinationPort, unpack.destinationIP);
         remotesocket.on('connect', () => {
           remotesocket.setNoDelay(true);
-
-          const thisSession = this.sessions[sID];
 
           const currentBufferSize = Buffer.byteLength(thisSession.initBuffer); 
 
@@ -74,7 +74,7 @@ class Connection {
           });
         });
 
-        remotesocket.on('close', (data) => {
+        remotesocket.on('close', () => {
           socket.emit('packed', {
             method: 'CLOSE',
             sessionIndicator: sID
@@ -88,8 +88,9 @@ class Connection {
             sessionIndicator: sID,
             message: err.toString()
           });
+          delete this.sessions[sID];
         });
-        delete this.sessions[sID];
+        
       } else if (unpack.method === 'DATA') {
 
         if (!this.sessions[sID].socket) return;
