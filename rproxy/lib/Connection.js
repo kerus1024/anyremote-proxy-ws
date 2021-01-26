@@ -52,7 +52,7 @@ class Connection {
             remotesocket.write(sliceLeft);
             remotesocket.write(sliceRight);
           } else {
-            remotesocket(thisSession.initBuffer);
+            remotesocket.write(thisSession.initBuffer);
           }
 
           thisSession.initState = true;
