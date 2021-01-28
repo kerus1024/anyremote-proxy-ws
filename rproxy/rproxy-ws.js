@@ -10,7 +10,7 @@ const redis = require('socket.io-redis');
 if (cluster.isMaster) {
 
   let cpus = require('os').cpus().length;
-  cpus = cpus * 2;
+  //cpus = cpus * 2; 
 
   console.log(`Run ${process.title}.`);
 
@@ -36,6 +36,10 @@ if (cluster.isMaster) {
   
     const connectionPipe = new Connection(socket, io);
 
+  });
+
+  io.on('error', (e) => {
+    console.error(e);
   });
 
   console.log(`forked! ${process.title} - ${process.pid} pid `);

@@ -31,7 +31,7 @@ class HandleConnection {
   async build() {
 
     // Build RemoteSocket Listen
-    this.remoteSocket.on('sid/' + this.sessionID, (packed) => {
+    const thisListener = this.remoteSocket.on('sid/' + this.sessionID, (packed) => {
 
       // GC야 부탁해..
       if (!this.tcpSocket) return;
@@ -82,16 +82,26 @@ class HandleConnection {
       });
       this.tcpSocket.destroy();
       delete this.session;
+
+      if (typeof thisListener._events['sid/' + this.sessionID] === 'function') {
+        thisListener.removeListener('sid/' + this.sessionID, thisListener._events['sid/' + this.sessionID]);1
+      }
+      
     });
 
-    this.tcpSocket.on('error', (e) => {
+    this.tcpSocket.on('error', (err) => {
+      console.error(err);
       this.ioCluster.emit('packed', {
         method: 'ERROR',
-        sessionIndicator: this.sessionID,
-        message: e.toString()
+        sessionIndicator: this.sessionID
       });
       this.tcpSocket.destroy();
       delete this.session;
+      
+      if (typeof thisListener._events['sid/' + this.sessionID] === 'function') {
+        thisListener.removeListener('sid/' + this.sessionID, thisListener._events['sid/' + this.sessionID]);
+      }
+      
     });
 
   }

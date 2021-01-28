@@ -6,6 +6,9 @@ class Connection {
 
   constructor(socket) {
 
+    socket.sendBuffer = [];
+    socket.receiveBuffer = [];
+
     console.log(`NEW WEBSOCKET CONNECTION FROM ${socket.handshake.address}`);
 
     this.sessions = {};
@@ -17,6 +20,11 @@ class Connection {
       const sID = unpack.sessionIndicator;
 
       if (unpack.method !== 'CONNECT' && typeof this.sessions[sID] === 'undefined') {
+        socket.emit('packed', {
+          method: 'ERROR',
+          sessionIndicator: sID,
+          message: 'Session not found.'
+        });
         return;
       }
 
@@ -79,21 +87,24 @@ class Connection {
             method: 'CLOSE',
             sessionIndicator: sID
           });
+          remotesocket.destroy();
           delete this.sessions[sID];
         });
 
         remotesocket.on('error', (err) => {
+          console.error(err);
           socket.emit('packed', {
             method: 'ERROR',
             sessionIndicator: sID,
             message: err.toString()
           });
+          remotesocket.destroy();
           delete this.sessions[sID];
         });
         
       } else if (unpack.method === 'DATA') {
 
-        if (!this.sessions[sID].socket) return;
+        if (!this.sessions[sID]) return;
 
         if (!this.sessions[sID].initState) {
           this.sessions[sID].initBuffer = Buffer.concat([this.sessions[sID].initBuffer, unpack.data]);
@@ -108,23 +119,23 @@ class Connection {
         }
 
       } else if (unpack.method === 'DRAIN') {
-        if (this.sessions[sID].socket) {
+        if (this.sessions[sID]) {
           this.sessions[sID].socket.resume();
         }
       } else if (unpack.method === 'PAUSE') {
-        if (this.sessions[sID].socket) {
+        if (this.sessions[sID]) {
           this.sessions[sID].socket.pause();
         }
       } else if (unpack.method === 'CLOSE') {
-        if (this.sessions[sID].socket) {
+        if (this.sessions[sID]) {
           this.sessions[sID].socket.destroy();
+          delete this.sessions[sID];
         }
-        delete this.sessions[sID];
       } else if (unpack.method === 'ERROR') {
-        if (this.sessions[sID].socket) {
+        if (this.sessions[sID]) {
           this.sessions[sID].socket.destroy();
+          delete this.sessions[sID];
         } 
-        delete this.sessions[sID];
       } else {  
         console.error('ERR: Received unknown message. ', packed);
       }
